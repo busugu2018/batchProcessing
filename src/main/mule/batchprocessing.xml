@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="a24a52df-c36c-4da2-9f9b-ba429d4c8f1e" >
+		<file:connection workingDir="/Volumes/Nzieng SSD1/Nzieng SSD1/IT/MuleSoft/muleRepExamples/batchProcessing" />
+	</file:config>
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="3c28ef8a-a163-42fa-b5ad-52b58621d761" >
+		<salesforce:basic-connection username="lenziemaraang@gmail.com" password="Qwertyuiop1!" securityToken="AXu0Pf7iX7qVtLeWI1VwoQEE" />
+	</salesforce:sfdc-config>
+	<flow name="batchprocessingFlow" doc:id="3d2afb79-af6c-4cf9-9832-fb2a6af3f470" >
+		<file:listener doc:name="On New or Updated File" doc:id="4b8bb80d-b516-4ee4-b93a-506e48de67a4" config-ref="File_Config" directory="/Volumes/Nzieng SSD1/Nzieng SSD1/IT/MuleSoft/muleRepExamples/batchProcessing/src/main/resources/input" autoDelete="true">
+			<scheduling-strategy >
+				<fixed-frequency frequency="20000" />
+			</scheduling-strategy>
+		</file:listener>
+		<ee:transform doc:name="Transform Message" doc:id="efa5c056-b02b-4f0c-8d84-ea50de20eeee" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<batch:job jobName="batchprocessingBatch_Job" doc:id="c1adc0d4-ddb6-421e-ba9f-036156862b87" >
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="4cc64a55-694d-4078-b7a5-004b9cf51323" >
+					<ee:transform doc:name="Transform Message" doc:id="7863d1ab-80f1-46a0-bcc4-65dcd3f21fba" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload map ( payload01 , indexOfPayload01 ) -> {
+	LastName: payload01." LastName",
+	FirstName: payload01.FirstName,
+	Phone: payload01." Phone" as String,
+	Email: payload01." Email"
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="56ec9059-f4c1-45f0-95d2-782f12d6543f" size="16">
+						<salesforce:create doc:name="Create" doc:id="b97ae86c-08c0-4bb2-a0f5-81c49d9e7aa4" config-ref="Salesforce_Config" type="Contact"/>
+						<ee:transform doc:name="Transform Message" doc:id="f2e925dc-219e-4ffc-9e99-bf85582d585b">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+						<logger level="INFO" doc:name="Logger" doc:id="4e97a5d4-0e9c-44a8-948c-068cbe78b591" message="#[payload]" />
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete>
+				<logger level="INFO" doc:name="Logger" doc:id="765c745a-e24f-4027-8434-0f4e8122565d" message="Job completed"/>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>
